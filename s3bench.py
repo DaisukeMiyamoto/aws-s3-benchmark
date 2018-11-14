@@ -1,4 +1,5 @@
 import sys
+import os
 import numpy
 import boto3
 import random
@@ -19,23 +20,33 @@ def generate_dummy_file(filename, megabyte):
 def measure_upload_speed(bucket_name, filename):
     s3 = boto3.client('s3')
     key_name = generate_random_str(20)
+
+    # upload
     start = time.time()
     s3.upload_file(filename, bucket_name, key_name)
-    elapse_time = time.time() - start
+    upload_time = time.time() - start
+
+    # download
+    start = time.time()
+    s3.download_file(bucket_name, key_name, key_name)
+    download_time = time.time() - start
     
-    return elapse_time
+    # clean up
+    os.remove(key_name)
+
+    return upload_time, download_time
 
 
 if __name__=='__main__':
     s3_bucket_name = 'midaisuk-s3-test'
 
-    filesize_list = [100, 500, 1000, 5000, 10000]
+    filesize_list = [100, 500, 1000]
     filename_template = '%dmb.tmp'
     
     for filesize in filesize_list:
-        print('Testing %d MB' % filesize)
+        print('Testing %d MB:' % filesize)
         filename = filename_template % filesize
         generate_dummy_file(filename, filesize)
-        elapse_time = measure_upload_speed(s3_bucket_name, filename)
-        print(' * %f [sec]' % elapse_time)
-
+        upload_time, download_time = measure_upload_speed(s3_bucket_name, filename)
+        print(' * Upload    %.4f Mbit/sec (%.4f [sec])' % (filesize / upload_time, upload_time))
+        print(' * Download  %.4f Mbit/sec (%.4f [sec])' % (filesize / download_time, download_time))
