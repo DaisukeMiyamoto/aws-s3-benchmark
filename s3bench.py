@@ -48,5 +48,5 @@ if __name__=='__main__':
         filename = filename_template % filesize
         generate_dummy_file(filename, filesize)
         upload_time, download_time = measure_upload_speed(s3_bucket_name, filename)
-        print(' * Upload    %.4f Mbit/sec (%.4f [sec])' % (filesize / upload_time * 8, upload_time))
-        print(' * Download  %.4f Mbit/sec (%.4f [sec])' % (filesize / download_time * 8, download_time))
+        print(' * Upload    %.2f Mbit/sec (%.4f [sec])' % (filesize / upload_time * 8, upload_time))
+        print(' * Download  %.2f Mbit/sec (%.4f [sec])' % (filesize / download_time * 8, download_time))
