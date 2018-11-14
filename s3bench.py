@@ -12,23 +12,28 @@ def generate_random_str(num):
     return random_str
 
 
-def generate_dummy_file(filename, megabyte):
+def generate_dummy_file(filename, megabyte, random_data=True):
     with open(filename, 'wb') as file:
-        file.write(numpy.random.bytes(megabyte * 1024 * 1024))
+        for i in range(10):
+            if random_data:
+                file.write(numpy.random.bytes(megabyte * 1000 * 100))
+            else:
+                file.write(numpy.zeros(megabyte * 1000 * 100 / 8))
     
     
-def measure_upload_speed(bucket_name, filename):
+def measure_upload_speed(bucket_name, filename, max_concurrency=10, max_io_queue=100):
     s3 = boto3.client('s3')
+    transfer_config = boto3.s3.transfer.TransferConfig(max_concurrency=max_concurrency, max_io_queue=max_io_queue)
     key_name = generate_random_str(20)
 
     # upload
     start = time.time()
-    s3.upload_file(filename, bucket_name, key_name)
+    s3.upload_file(filename, bucket_name, key_name, Config=transfer_config)
     upload_time = time.time() - start
 
     # download
     start = time.time()
-    s3.download_file(bucket_name, key_name, key_name)
+    s3.download_file(bucket_name, key_name, key_name, Config=transfer_config)
     download_time = time.time() - start
     
     # clean up
@@ -42,11 +47,29 @@ if __name__=='__main__':
 
     filesize_list = [100, 500, 1000]
     filename_template = '%dmb.tmp'
+
+    max_concurrency = 100
+    max_io_queue = 1000
+    random_data = True
+    
+    print('Settings:')
+    print(' * Max Concurrency: %d' % max_concurrency)
+    print(' * Max IO Queue: %d' % max_io_queue)
+    print(' * Random Data: %s' % random_data)
     
     for filesize in filesize_list:
         print('Testing %d MB:' % filesize)
         filename = filename_template % filesize
-        generate_dummy_file(filename, filesize)
-        upload_time, download_time = measure_upload_speed(s3_bucket_name, filename)
-        print(' * Upload    %.2f Mbit/sec (%.4f [sec])' % (filesize / upload_time * 8, upload_time))
-        print(' * Download  %.2f Mbit/sec (%.4f [sec])' % (filesize / download_time * 8, download_time))
+
+        # if not os.path.exists(filename):
+        generate_dummy_file(filename, filesize, random_data=random_data)
+            
+        upload_time, download_time = measure_upload_speed(
+            s3_bucket_name,
+            filename,
+            max_concurrency=max_concurrency, 
+            max_io_queue=max_io_queue
+            )
+        
+        print(' * Upload    %.2f Mbps (%.4f [sec])' % (filesize / upload_time * 8, upload_time))
+        print(' * Download  %.2f Mbbps (%.4f [sec])' % (filesize / download_time * 8, download_time))
