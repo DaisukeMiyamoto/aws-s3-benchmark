@@ -121,11 +121,11 @@ class S3Benchmark:
 
         random_str = self._generate_random_str(8)
         for i in range(num_threads):
-            local_file_name = random_str + '_%d_%dmb.tmp' % (i, file_size_mb)
+            local_file_name = random_str + ('_%d_%dmb.tmp' % (i, file_size_mb))
             self.local_tmp_file_list.append(local_file_name)
             self.s3_tmp_file_list.append(local_file_name)
             self._generate_dummy_file(local_file_name, file_size_mb, random_data=self.random_data)
-            
+
         pool = multiprocessing.Pool(num_threads)
         start = time.time()
         pool.map(self._measure_upload_speed, self.local_tmp_file_list)
@@ -152,7 +152,7 @@ class S3Benchmark:
             os.remove('down_' + tmp_file)
         
         for tmp_file in self.s3_tmp_file_list:
-            s3.delete_object(self.bucket_name, tmp_file)
+            s3.delete_object(Bucket=self.bucket_name, Key=tmp_file)
 
         self.local_tmp_file_list = []
         self.s3_tmp_file_list = []
