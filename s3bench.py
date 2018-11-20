@@ -6,16 +6,18 @@ from boto3.s3.transfer import TransferConfig
 import random
 import string
 import time
-import threading
+# import threading
+import multiprocessing
 
 
 class S3Benchmark():
-    def __init__(self, bucket_name, max_concurrency=10, max_io_queue=100, random_data=True):
+    def __init__(self, bucket_name, max_concurrency=10, max_io_queue=100, random_data=True, clean=True):
         self.bucket_name = bucket_name
         self.local_tmp_file_list = []
         self.s3_tmp_file_list = []
         self.transfer_config = TransferConfig(max_concurrency=max_concurrency, max_io_queue=max_io_queue)
         self.random_data = random_data
+        self.clean = clean
 
     def _generate_random_str(self, num):
         random_str = ''.join([random.choice(string.ascii_letters + string.digits) for i in range(num)])
@@ -59,26 +61,25 @@ class S3Benchmark():
             
         print(' * Upload    %.2f Mbps (%.4f [sec])' % (filesize / upload_time * 8, upload_time))
         print(' * Download  %.2f Mbbps (%.4f [sec])' % (filesize / download_time * 8, download_time))
-        self._clean()
+
+        if self.clean:
+            self._clean()
 
     def multi_run(self, num_threads, file_size_mb):
         print('Testing %d MB:' % file_size_mb)
 
-        thread_list = []
+        random_str = self._generate_random_str(8)
         for i in range(num_threads):
-            local_file_name = self._generate_random_str(8) + '_%d_%dmb.tmp' % (i, file_size_mb)
+            local_file_name = random_str + '_%d_%dmb.tmp' % (i, file_size_mb)
             self.local_tmp_file_list.append(local_file_name)
             self._generate_dummy_file(local_file_name, file_size_mb, random_data=self.random_data)
             
-            thread = threading.Thread(target=self._measure_upload_speed, args=([local_file_name]))
-            thread_list.append(thread)
-        
-        for thread in thread_list:
-            thread.start()
-        
-        for thread in thread_list:
-            thread.join()
+        pool = multiprocessing.Pool(num_threads)
+        pool.map(self._measure_upload_speed, self.local_tmp_file_list)
+        pool.close()
 
+        if self.clean:
+            self._clean()
 
     def _clean(self):
         s3 = boto3.client('s3')
