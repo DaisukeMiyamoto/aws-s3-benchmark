@@ -84,7 +84,6 @@ class S3Benchmark:
         start = time.time()
         s3.upload_file(file_name, self.bucket_name, file_name, Config=self.transfer_config)
         process_time = time.time() - start
-        self.s3_tmp_file_list.append(file_name)
         return process_time
 
     def _measure_download_speed(self, file_name):
@@ -92,7 +91,6 @@ class S3Benchmark:
         start = time.time()
         s3.download_file(self.bucket_name, file_name, 'down_' + file_name, Config=self.transfer_config)
         process_time = time.time() - start
-        self.local_tmp_file_list.append('down_' + file_name)
         return process_time
         
     def _print_result(self, upload_speed, upload_time, download_speed, download_time):
@@ -125,6 +123,7 @@ class S3Benchmark:
         for i in range(num_threads):
             local_file_name = random_str + '_%d_%dmb.tmp' % (i, file_size_mb)
             self.local_tmp_file_list.append(local_file_name)
+            self.s3_tmp_file_list.append(local_file_name)
             self._generate_dummy_file(local_file_name, file_size_mb, random_data=self.random_data)
             
         pool = multiprocessing.Pool(num_threads)
@@ -138,7 +137,7 @@ class S3Benchmark:
         pool.map(self._measure_download_speed, self.local_tmp_file_list)
         download_time = time.time() - start
         pool.close()
-
+        
         self._print_result(filesize * num_threads / upload_time * 8, upload_time, filesize * num_threads  / download_time * 8, download_time)
 
         if self.clean:
@@ -150,9 +149,10 @@ class S3Benchmark:
         s3 = boto3.client('s3')
         for tmp_file in self.local_tmp_file_list:
             os.remove(tmp_file)
+            os.remove('down_' + tmp_file)
         
-        # for tmp_file in self.s3_tmp_file_list:
-        #     s3.delete_object(self.bucket_name, tmp_file)
+        for tmp_file in self.s3_tmp_file_list:
+            s3.delete_object(self.bucket_name, tmp_file)
 
         self.local_tmp_file_list = []
         self.s3_tmp_file_list = []
