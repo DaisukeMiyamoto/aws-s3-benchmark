@@ -6,7 +6,6 @@ from boto3.s3.transfer import TransferConfig
 import random
 import string
 import time
-# import threading
 import multiprocessing
 
 
@@ -69,7 +68,7 @@ class S3Benchmark():
             self._clean()
 
     def multi_run(self, num_threads, file_size_mb):
-        print('Testing %d MB, %d Process:' % (file_size_mb, num_threads))
+        print('Testing %d MB x %d Process:' % (file_size_mb, num_threads))
 
         random_str = self._generate_random_str(8)
         for i in range(num_threads):
@@ -109,8 +108,8 @@ class S3Benchmark():
 if __name__=='__main__':
     s3_bucket_name = 'midaisuk-s3-test'
 
-    filesize_list = [100, 500, 1000]
-    threads_list = [1, 2, 4]
+    filesize_list = [32, 64, 128, 256, 512, 1024, 2048]
+    threads_list = [1, 2, 4, 8]
 
     max_concurrency = 100
     max_io_queue = 1000
