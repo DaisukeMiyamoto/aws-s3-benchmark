@@ -6,6 +6,7 @@ from boto3.s3.transfer import TransferConfig
 import random
 import string
 import time
+import threading
 
 
 class S3Benchmark():
@@ -60,6 +61,25 @@ class S3Benchmark():
         print(' * Download  %.2f Mbbps (%.4f [sec])' % (filesize / download_time * 8, download_time))
         self._clean()
 
+    def multi_run(self, num_threads, file_size_mb):
+        print('Testing %d MB:' % file_size_mb)
+
+        thread_list = []
+        for i in range(num_threads):
+            local_file_name = self._generate_random_str(8) + '_%d_%dmb.tmp' % (i, file_size_mb)
+            self.local_tmp_file_list.append(local_file_name)
+            self._generate_dummy_file(local_file_name, file_size_mb, random_data=self.random_data)
+            
+            thread = threading.Thread(target=self._measure_upload_speed, args=([local_file_name]))
+            thread_list.append(thread)
+        
+        for thread in thread_list:
+            thread.start()
+        
+        for thread in thread_list:
+            thread.join()
+
+
     def _clean(self):
         s3 = boto3.client('s3')
         for tmp_file in self.local_tmp_file_list:
@@ -76,6 +96,7 @@ if __name__=='__main__':
     s3_bucket_name = 'midaisuk-s3-test'
 
     filesize_list = [100, 500, 1000]
+    threads_list = [1, 2, 4, 8]
 
     max_concurrency = 100
     max_io_queue = 1000
@@ -92,6 +113,9 @@ if __name__=='__main__':
         random_data=random_data
     )
 
-    for filesize in filesize_list:
-        s3bench.run(filesize)
+    # for filesize in filesize_list:
+    #     s3bench.run(filesize)
 
+    
+    for filesize in filesize_list:
+        s3bench.multi_run(4, filesize)
