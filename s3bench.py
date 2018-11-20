@@ -171,7 +171,7 @@ if __name__=='__main__':
     random_data = True
     
     recorder = BenchmarkRecorder([
-        'trial'
+        'trial',
         'file_size',
         'max_concurrency',
         'max_io_queue',
