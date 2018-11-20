@@ -46,7 +46,11 @@ class S3Benchmark():
         process_time = time.time() - start
         self.local_tmp_file_list.append('down_' + file_name)
         return process_time
-
+        
+    def _print_result(self, upload_speed, upload_time, download_speed, download_time):
+        print(' * Upload    %.2f Mbps (%.4f [sec])' % (upload_speed, upload_time))
+        print(' * Download  %.2f Mbps (%.4f [sec])' % (download_speed, download_time))
+        
     def run(self, file_size_mb):
         print('Testing %d MB:' % file_size_mb)
 
@@ -58,15 +62,14 @@ class S3Benchmark():
 
         upload_time = self._measure_upload_speed(local_file_name)
         download_time = self._measure_download_speed(local_file_name)
-            
-        print(' * Upload    %.2f Mbps (%.4f [sec])' % (filesize / upload_time * 8, upload_time))
-        print(' * Download  %.2f Mbbps (%.4f [sec])' % (filesize / download_time * 8, download_time))
+
+        self._print_result(filesize / upload_time * 8, upload_time, filesize / download_time * 8, download_time)
 
         if self.clean:
             self._clean()
 
     def multi_run(self, num_threads, file_size_mb):
-        print('Testing %d MB:' % file_size_mb)
+        print('Testing %d MB, %d Process:' % (file_size_mb, num_threads))
 
         random_str = self._generate_random_str(8)
         for i in range(num_threads):
@@ -75,8 +78,18 @@ class S3Benchmark():
             self._generate_dummy_file(local_file_name, file_size_mb, random_data=self.random_data)
             
         pool = multiprocessing.Pool(num_threads)
+        start = time.time()
         pool.map(self._measure_upload_speed, self.local_tmp_file_list)
+        upload_time = time.time() - start
         pool.close()
+        
+        pool = multiprocessing.Pool(num_threads)
+        start = time.time()
+        pool.map(self._measure_download_speed, self.local_tmp_file_list)
+        download_time = time.time() - start
+        pool.close()
+
+        self._print_result(filesize * num_threads / upload_time * 8, upload_time, filesize * num_threads  / download_time * 8, download_time)
 
         if self.clean:
             self._clean()
@@ -97,7 +110,7 @@ if __name__=='__main__':
     s3_bucket_name = 'midaisuk-s3-test'
 
     filesize_list = [100, 500, 1000]
-    threads_list = [1, 2, 4, 8]
+    threads_list = [1, 2, 4]
 
     max_concurrency = 100
     max_io_queue = 1000
@@ -114,9 +127,9 @@ if __name__=='__main__':
         random_data=random_data
     )
 
-    # for filesize in filesize_list:
-    #     s3bench.run(filesize)
-
-    
     for filesize in filesize_list:
-        s3bench.multi_run(4, filesize)
+        s3bench.run(filesize)
+
+    for num_threads in threads_list:
+        for filesize in filesize_list:
+            s3bench.multi_run(num_threads, filesize)
