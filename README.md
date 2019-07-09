@@ -13,4 +13,5 @@ Amazon S3 Upload/Download throughput benchmark
 pandas
 numpy
 requests
+boto3
 ```
